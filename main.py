@@ -18,6 +18,7 @@ START_TEXT = """
 4 - convert leftovers
 """
 
+
 # https://www.youtube.com/watch?v=W58FBW93nRc
 def download_fnc(url, download_type, download_path):
     if download_type is 0:
@@ -25,28 +26,26 @@ def download_fnc(url, download_type, download_path):
         try:
             query = YouTube(url)
         except exceptions.VideoUnavailable:
-            print("||Couldn't find video||")
-
+            print("||VIDEO NOT FOUND||")
             return 0
         
         stream = query.streams.filter(only_audio=True).order_by("abr").last()
         # check if file is already downloaded
         if os.path.isfile(os.path.join(download_path, stream.default_filename)):
             print("||ALREADY DOWNLOADED|| ~~ {0}".format(stream.default_filename))
-
             return 0
         else:
             # check if download path folder exists
             if not os.path.isdir(download_path):
                 os.mkdir(download_path)
 
-            print("Downloading \"{0}\"".format(query.title))
-            stream.download(output_path=download_path)
-            print("||FINISHED|| ~~ {0}".format(query.title))
+            print("||DOWNLOADING|| ~~ \"{0}\"".format(query.title))
+            # stream.download(output_path=download_path)
+            print("||FINISHED|| ~~ \"{0}\"".format(query.title))
 
             return 0
     elif download_type is 2:
-        # download as mp4 video - highest quality available 
+        # download as mp4 video - highest quality available
         return 0
 
 
@@ -55,7 +54,7 @@ def convert_fnc(path):
         file = os.path.join(path, filename)
         if os.path.isfile(file):
             print(file)
-            # print(ffmpeg.probe(os.path.normpath(file)))
+            print(ffmpeg.probe(os.path.normpath(file)))
     return 0
 
 
@@ -71,22 +70,23 @@ def url_info(url):
     pprint(streams)
     print()
 
-# HERE WE GO - START THE ENGINES
 
+# HERE WE GO - START THE ENGINES
 while True:
     command = input(START_TEXT)
     if command == '1':
         url = input("URL: ")
         if url.startswith(YT_URL):
-            path = os.path.abspath(input("Press enter to use default download path\nPATH: "))
+            path = input("Press enter to use default download path\nPATH: ")
             if path is '':
                 print("Using default path: {0}".format(DEF_PATH))
                 download_fnc(url, 0, DEF_PATH)
-                #now convert the downloaded file
+                # now convert the downloaded file
                 convert_fnc(DEF_PATH)
             else:
+                print("Download path: {0}\n".format(path))
                 download_fnc(url, 0, path)
-                #now convert the downloaded file
+                # now convert the downloaded file
                 convert_fnc(path)
         else:
             print("Wrong URL format!")
