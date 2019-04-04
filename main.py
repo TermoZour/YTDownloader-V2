@@ -2,24 +2,23 @@
 # TODO - DON'T FORGET ABOUT USER ERRORS
 # TODO - add file converter (from webm to mp3, etc)
 
-import csv
-import difflib
 import os
 from pprint import pprint
-from subprocess import run
+import ffmpeg
 
 from pytube import YouTube, exceptions
 
 YT_SEARCH_API_KEY = "asdf"
 YT_URL = "https://www.youtube.com/watch?v="
-DEF_PATH = "downloads"
+DEF_PATH = "downloads/"
 START_TEXT = """
 1 - download as mp3
 2 - download as mp4
 3 - link info
+4 - convert leftovers
 """
 
-
+# https://www.youtube.com/watch?v=W58FBW93nRc
 def download_fnc(url, download_type, download_path):
     if download_type is 0:
         # download as mp3
@@ -37,8 +36,12 @@ def download_fnc(url, download_type, download_path):
 
             return 0
         else:
+            # check if download path folder exists
+            if not os.path.isdir(download_path):
+                os.mkdir(download_path)
+
             print("Downloading \"{0}\"".format(query.title))
-            # stream.download(output_path=path)
+            stream.download(output_path=download_path)
             print("||FINISHED|| ~~ {0}".format(query.title))
 
             return 0
@@ -47,7 +50,12 @@ def download_fnc(url, download_type, download_path):
         return 0
 
 
-def string_to_url(string):
+def convert_fnc(path):
+    for filename in os.listdir(path):
+        file = os.path.join(path, filename)
+        if os.path.isfile(file):
+            print(file)
+            # print(ffmpeg.probe(os.path.normpath(file)))
     return 0
 
 
@@ -65,21 +73,41 @@ def url_info(url):
 
 # HERE WE GO - START THE ENGINES
 
-# https://www.youtube.com/watch?v=W58FBW93nRc
 while True:
     command = input(START_TEXT)
-    if command == "1":
+    if command == '1':
         url = input("URL: ")
         if url.startswith(YT_URL):
-            path = input("PATH: ")
-            download_fnc(url, 0, path)
+            path = os.path.abspath(input("Press enter to use default download path\nPATH: "))
+            if path is '':
+                print("Using default path: {0}".format(DEF_PATH))
+                download_fnc(url, 0, DEF_PATH)
+                #now convert the downloaded file
+                convert_fnc(DEF_PATH)
+            else:
+                download_fnc(url, 0, path)
+                #now convert the downloaded file
+                convert_fnc(path)
         else:
             print("Wrong URL format!")
         exit(0)
-    elif command == "2":
+    elif command == '2':
         exit(0)
-    elif command == "3":
+    elif command == '3':
         url_info(input("URL: "))
         exit(0)
+    elif command == '4':
+        path = input("Press enter to use default download path\nPATH: ")
+        if path is '':
+            path = os.path.abspath(DEF_PATH)
+            print("Using default path: {0}\n".format(path))
+            convert_fnc(path)
+            exit(0)
+        else:
+            path = os.path.abspath(path)
+            print("Download path: {0}\n".format(path))
+            convert_fnc(path)
+            print("\n")
+            exit(0)
     else:
         exit(1)
