@@ -10,14 +10,17 @@ from pytube import YouTube, exceptions
 
 YT_SEARCH_API_KEY = "asdf"
 YT_URL = "https://www.youtube.com/watch?v="
-DEF_PATH = "downloads/"
+DEF_PATH = "downloads"
 START_TEXT = """
 1 - download as mp3
 2 - download as mp4
 3 - link info
 4 - convert leftovers
+ENTER OPTION:
 """
-
+os.chdir(os.getcwd())
+ROOT_DIR = os.getcwd()
+print("||WORKING DIR|| ~~ \"{}\"".format(ROOT_DIR))
 
 # https://www.youtube.com/watch?v=W58FBW93nRc
 def download_fnc(url, download_type, download_path):
@@ -33,28 +36,34 @@ def download_fnc(url, download_type, download_path):
         # check if file is already downloaded
         if os.path.isfile(os.path.join(download_path, stream.default_filename)):
             print("||ALREADY DOWNLOADED|| ~~ {0}".format(stream.default_filename))
-            return 0
         else:
             # check if download path folder exists
             if not os.path.isdir(download_path):
                 os.mkdir(download_path)
 
             print("||DOWNLOADING|| ~~ \"{0}\"".format(query.title))
-            # stream.download(output_path=download_path)
+            stream.download(output_path=download_path)
             print("||FINISHED|| ~~ \"{0}\"".format(query.title))
-
-            return 0
     elif download_type is 2:
         # download as mp4 video - highest quality available
         return 0
+    return 0
 
 
-def convert_fnc(path):
-    for filename in os.listdir(path):
-        file = os.path.join(path, filename)
-        if os.path.isfile(file):
-            print(file)
-            print(ffmpeg.probe(os.path.normpath(file)))
+def convert_fnc(file_path):
+    print(os.listdir(file_path))
+    try:
+        for filename in os.listdir(file_path):
+            file = os.path.join(file_path, filename).replace(os.sep, '/')
+            if os.path.isfile(file):
+                print("||FOUND FILE||")
+                print(file)
+                try:
+                    print(ffmpeg.probe(file))
+                except FileNotFoundError:
+                    print("||FILE NOT FOUND - FFMPEG PROBE||")
+    except FileNotFoundError:
+        print("||FILE NOT FOUND||")
     return 0
 
 
@@ -70,6 +79,8 @@ def url_info(url):
     pprint(streams)
     print()
 
+    return 0
+
 
 # HERE WE GO - START THE ENGINES
 while True:
@@ -79,15 +90,21 @@ while True:
         if url.startswith(YT_URL):
             path = input("Press enter to use default download path\nPATH: ")
             if path is '':
-                print("Using default path: {0}".format(DEF_PATH))
-                download_fnc(url, 0, DEF_PATH)
-                # now convert the downloaded file
-                convert_fnc(DEF_PATH)
-            else:
-                print("Download path: {0}\n".format(path))
+                path = os.path.join(ROOT_DIR, DEF_PATH).replace(os.sep, '/')
+                print("Using default path: {0}".format(path))
                 download_fnc(url, 0, path)
+                print('\n')
                 # now convert the downloaded file
                 convert_fnc(path)
+                print('\n')
+            else:
+                path = os.path.join(ROOT_DIR, path).replace(os.sep, '/')
+                print("Download path: {0}\n".format(path))
+                download_fnc(url, 0, path)
+                print('\n')
+                # now convert the downloaded file
+                convert_fnc(path)
+                print('\n')
         else:
             print("Wrong URL format!")
         exit(0)
@@ -99,15 +116,15 @@ while True:
     elif command == '4':
         path = input("Press enter to use default download path\nPATH: ")
         if path is '':
-            path = os.path.abspath(DEF_PATH)
+            path = os.path.join(ROOT_DIR, DEF_PATH).replace(os.sep, '/')
             print("Using default path: {0}\n".format(path))
             convert_fnc(path)
-            exit(0)
+            print('\n')
         else:
-            path = os.path.abspath(path)
+            path = os.path.join(ROOT_DIR, path).replace(os.sep, '/')
             print("Download path: {0}\n".format(path))
             convert_fnc(path)
-            print("\n")
-            exit(0)
+            print('\n')
+        exit(0)
     else:
         exit(1)
