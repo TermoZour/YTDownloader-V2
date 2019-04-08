@@ -30,14 +30,15 @@ def download_fnc(url, download_type, download_path):
             return 0
         stream = query.streams.filter(only_audio=True).order_by("abr").last()
         # check if file is already downloaded
-        if os.path.isfile(os.path.join(download_path, stream.default_filename)):
+        file = os.path.splitext(os.path.join(download_path, stream.default_filename))[0] + ".mp3"
+        if os.path.isfile(file):
             print("||ALREADY DOWNLOADED|| ~~ {0}".format(stream.default_filename))
         else:
             # check if download path folder exists
             if not os.path.isdir(download_path):
                 os.mkdir(download_path)
 
-            print("||DOWNLOADING|| ~~ \"{0}\"\n{1}".format(query.title,stream))
+            print("||DOWNLOADING|| ~~ \"{0}\"\n||DETAILS|| {1}".format(query.title,stream))
             stream.download(output_path=download_path)
             print("||FINISHED|| ~~ \"{0}\"".format(query.title))
     elif download_type is 2:
@@ -47,22 +48,19 @@ def download_fnc(url, download_type, download_path):
 
 
 def convert_fnc(file_path):
-    print(os.listdir(file_path))
     try:
         for filename in os.listdir(file_path):
             file = os.path.join(file_path, filename)
             if os.path.isfile(file):
                 if not os.path.splitext(file)[1] == ".mp3":
-                    print("||FOUND FILE||")
-                    print(file)
-                    try:
-                        stream = ffmpeg.input(file)
-                        stream = ffmpeg.output(stream, file.replace(os.path.splitext(file)[1], ".mp3"), format="mp3")
-                        ffmpeg.run(stream)
-                    except ffmpeg.Error:
-                        print("||FFMPEG ERROR OCCURED||")
+                    print("||FOUND FILE|| ~~ {0}".format(file))
+                    stream = ffmpeg.input(file)
+                    stream = ffmpeg.output(stream, file.replace(os.path.splitext(file)[1], ".mp3"), format="mp3")
+                    ffmpeg.run(stream)
+                    os.remove(file)
     except FileNotFoundError:
         print("||FILES NOT FOUND||")
+    print("||CONVERSION FINISHED||")
     return 0
 
 
