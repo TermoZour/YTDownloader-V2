@@ -4,8 +4,8 @@
 
 import os
 from pprint import pprint
-import ffmpeg
 
+import ffmpeg
 from pytube import YouTube, exceptions
 
 YT_SEARCH_API_KEY = "asdf"
@@ -18,6 +18,7 @@ START_TEXT = """
 4 - convert leftovers
 ENTER OPTION:
 """
+
 
 # https://www.youtube.com/watch?v=W58FBW93nRc
 def download_fnc(url, download_type, download_path):
@@ -38,7 +39,7 @@ def download_fnc(url, download_type, download_path):
             if not os.path.isdir(download_path):
                 os.mkdir(download_path)
 
-            print("||DOWNLOADING|| ~~ \"{0}\"\n||DETAILS|| {1}".format(query.title,stream))
+            print("||DOWNLOADING|| ~~ \"{0}\"\n||DETAILS|| {1}".format(query.title, stream))
             stream.download(output_path=download_path)
             print("||FINISHED|| ~~ \"{0}\"".format(query.title))
     elif download_type is 2:
