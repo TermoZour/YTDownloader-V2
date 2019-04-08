@@ -28,7 +28,6 @@ def download_fnc(url, download_type, download_path):
         except exceptions.VideoUnavailable:
             print("||VIDEO NOT FOUND||")
             return 0
-        
         stream = query.streams.filter(only_audio=True).order_by("abr").last()
         # check if file is already downloaded
         if os.path.isfile(os.path.join(download_path, stream.default_filename)):
@@ -38,7 +37,7 @@ def download_fnc(url, download_type, download_path):
             if not os.path.isdir(download_path):
                 os.mkdir(download_path)
 
-            print("||DOWNLOADING|| ~~ \"{0}\"".format(query.title))
+            print("||DOWNLOADING|| ~~ \"{0}\"\n{1}".format(query.title,stream))
             stream.download(output_path=download_path)
             print("||FINISHED|| ~~ \"{0}\"".format(query.title))
     elif download_type is 2:
@@ -53,18 +52,15 @@ def convert_fnc(file_path):
         for filename in os.listdir(file_path):
             file = os.path.join(file_path, filename)
             if os.path.isfile(file):
-                print("||FOUND FILE||")
-                print(file)
-                try:
-                    song = ffmpeg.probe(file)
-                    (
-                        ffmpeg
-                        .input(file) # fix the output fnc
-                        .output(file, audio_sample=song['streams']['sample_rate'], format='mp3')
-                        .run()
-                    )
-                except ffmpeg.Error:
-                    print("||FFMPEG ERROR OCCURED||")
+                if not os.path.splitext(file)[1] == ".mp3":
+                    print("||FOUND FILE||")
+                    print(file)
+                    try:
+                        stream = ffmpeg.input(file)
+                        stream = ffmpeg.output(stream, file.replace(os.path.splitext(file)[1], ".mp3"), format="mp3")
+                        ffmpeg.run(stream)
+                    except ffmpeg.Error:
+                        print("||FFMPEG ERROR OCCURED||")
     except FileNotFoundError:
         print("||FILES NOT FOUND||")
     return 0
