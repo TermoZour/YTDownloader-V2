@@ -3,6 +3,7 @@
 # TODO - add file converter (from webm to mp3, etc)
 
 import os
+import csv
 from pprint import pprint
 
 import ffmpeg
@@ -11,13 +12,13 @@ from pytube import YouTube, exceptions
 YT_SEARCH_API_KEY = "asdf"
 YT_URL = "https://www.youtube.com/watch?v="
 DEF_PATH = "downloads"
-START_TEXT = """
+START_TEXT = """~~~ Python YouTube/Spotify Downloader V2 ~~~
 1 - download as mp3
 2 - download as mp4
 3 - link info
-4 - convert leftovers
-ENTER OPTION:
-"""
+4 - Spotify CSV
+5 - convert leftovers
+ENTER OPTION: """
 
 
 # https://www.youtube.com/watch?v=W58FBW93nRc
@@ -65,6 +66,19 @@ def convert_fnc(file_path):
     return 0
 
 
+def csv_read(path):
+    try:
+        with open(path, newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                print("ID: {0} \nTitle: \"{1}\" \nArtist:\"{2}\" \nSpotify URL: \"{3}\"".format(row['#'], row['Title'], row['Artist'], row['Spotify URL']))
+                search_query = row['Title'] + ' - ' + row['Artist']
+                print(search_query)
+                print('\n')
+    except FileNotFoundError:
+        print("||CSV FILE NOT FOUND|| ~~ \"{0}\"".format(path))
+    return 0
+
 def url_info(url):
     query = YouTube(url)
     streams = query.streams.filter(only_audio=True).order_by("abr").all()
@@ -83,6 +97,7 @@ def url_info(url):
 # HERE WE GO - START THE ENGINES
 while True:
     command = input(START_TEXT)
+    # download as mp3
     if command == '1':
         url = input("URL: ")
         if url.startswith(YT_URL):
@@ -106,10 +121,17 @@ while True:
         exit(0)
     elif command == '2':
         exit(0)
+    # url info
     elif command == '3':
         url_info(input("URL: "))
         exit(0)
     elif command == '4':
+        path = os.path.normpath(input("Path to CSV file: "))
+        print("||OPENING CSV FILE||")
+        csv_read(path)
+        exit(0)
+    # convert leftovers
+    elif command == '5':
         path = input("Press enter to use default download path\nPATH: ")
         if path is '':
             print("Using default path: {0}\n".format(DEF_PATH))
