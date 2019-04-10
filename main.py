@@ -4,12 +4,15 @@
 
 import os
 import csv
+import urllib
+import httplib2
 from pprint import pprint
 
 import ffmpeg
 from pytube import YouTube, exceptions
+from apis import YT_SEARCH_API_KEY
+import googleapiclient.discovery
 
-YT_SEARCH_API_KEY = "asdf"
 YT_URL = "https://www.youtube.com/watch?v="
 DEF_PATH = "downloads"
 START_TEXT = """~~~ Python YouTube/Spotify Downloader V2 ~~~
@@ -80,19 +83,37 @@ def csv_read(path):
     return 0
 
 def url_info(url):
-    query = YouTube(url)
-    streams = query.streams.filter(only_audio=True).order_by("abr").all()
-    print("AUDIO ONLY")
-    pprint(streams)
-    print()
+    try:
+        query = YouTube(url)
+        streams = query.streams.filter(only_audio=True).order_by("abr").all()
+        print("AUDIO ONLY")
+        pprint(streams)
+        print()
 
-    print("ALL")
-    streams = query.streams.all()
-    pprint(streams)
-    print()
+        print("ALL")
+        streams = query.streams.all()
+        pprint(streams)
+    except urllib.error.URLError:
+        print("||COULD NOT SEARCH URL||")
+        print("||MAYBE NO INTERNET CONNECTION||")
 
     return 0
 
+
+def yt_search(words):
+    youtube = googleapiclient.discovery.build(
+        "youtube", "v3", developerKey = YT_SEARCH_API_KEY)
+    try:
+        request = youtube.search().list(
+            part="snippet",
+            maxResults=25,
+            q=words
+        )
+        response = request.execute()
+        print(response)
+    except httplib2.ServerNotFoundError:
+        print("||COULD NOT CONNECT TO SERVER||")
+        print("||MAYBE NO INTERNET CONNECTION||")
 
 # HERE WE GO - START THE ENGINES
 while True:
@@ -142,5 +163,8 @@ while True:
             convert_fnc(path)
             print('\n')
         exit(0)
+    elif command == '6':
+        query = input("Search on YT:")
+        yt_search(query)
     else:
         exit(1)
