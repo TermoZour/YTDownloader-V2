@@ -1,5 +1,6 @@
-downloads/*
-.vscode/*
-.idea/*
-venv/*
+downloads/
+.vscode/
+.idea/
+venv/
 apis.py
+__pycache__/
