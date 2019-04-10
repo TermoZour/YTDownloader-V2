@@ -6,6 +6,7 @@ import os
 import csv
 import urllib
 import httplib2
+import json
 from pprint import pprint
 
 import ffmpeg
@@ -93,6 +94,7 @@ def url_info(url):
         print("ALL")
         streams = query.streams.all()
         pprint(streams)
+        print()
     except urllib.error.URLError:
         print("||COULD NOT SEARCH URL||")
         print("||MAYBE NO INTERNET CONNECTION||")
@@ -106,11 +108,16 @@ def yt_search(words):
     try:
         request = youtube.search().list(
             part="snippet",
-            maxResults=25,
+            maxResults=5,
+            order="relevance",
+            type="video",
             q=words
         )
         response = request.execute()
-        print(response)
+
+        for song in response['items']:
+            print("TITLE: {0} \nCHANNEL: {1} \nLINK: {2}\n".format(song['snippet']['title'], song['snippet']['channelTitle'], YT_URL + song['id']['videoId']))
+
     except httplib2.ServerNotFoundError:
         print("||COULD NOT CONNECT TO SERVER||")
         print("||MAYBE NO INTERNET CONNECTION||")
@@ -157,14 +164,14 @@ while True:
         if path is '':
             print("Using default path: {0}\n".format(DEF_PATH))
             convert_fnc(DEF_PATH)
-            print('\n')
         else:
             print("Download path: {0}\n".format(path))
             convert_fnc(path)
-            print('\n')
         exit(0)
     elif command == '6':
-        query = input("Search on YT:")
+        query = input("Search on YT: ")
+        print()
         yt_search(query)
+        exit(0)
     else:
         exit(1)
