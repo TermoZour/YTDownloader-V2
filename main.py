@@ -6,7 +6,7 @@ import os
 import csv
 import urllib
 import httplib2
-import json
+import argparse
 from pprint import pprint
 
 import ffmpeg
@@ -83,6 +83,7 @@ def csv_read(path):
         print("||CSV FILE NOT FOUND|| ~~ \"{0}\"".format(path))
     return 0
 
+
 def url_info(url):
     try:
         query = YouTube(url)
@@ -103,11 +104,11 @@ def url_info(url):
 
 
 def yt_search(words):
-    youtube = googleapiclient.discovery.build(
-        "youtube", "v3", developerKey = YT_SEARCH_API_KEY)
+    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey = YT_SEARCH_API_KEY)
     try:
         request = youtube.search().list(
             part="snippet",
+            regionCode="US",
             maxResults=5,
             order="relevance",
             type="video",
@@ -122,7 +123,16 @@ def yt_search(words):
         print("||COULD NOT CONNECT TO SERVER||")
         print("||MAYBE NO INTERNET CONNECTION||")
 
-# HERE WE GO - START THE ENGINES
+
+ap = argparse.ArgumentParser(description="Script for converting Spotify songs to YouTube and much more.")
+ap.add_argument("-d", "--url-to-mp3", metavar="url",
+	help="url for YT video to download as a .mp3 file")
+ap.add_argument("-c", "--convert-mp3", metavar="path",
+	help="path to folder where the files are ready to be converted to mp3")
+args = vars(ap.parse_args())
+print(args)
+exit(0)
+
 while True:
     command = input(START_TEXT)
     # download as mp3
