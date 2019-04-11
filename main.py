@@ -99,7 +99,6 @@ def url_info(url):
     except urllib.error.URLError:
         print("||COULD NOT SEARCH URL||")
         print("||MAYBE NO INTERNET CONNECTION||")
-
     return 0
 
 
@@ -122,61 +121,92 @@ def yt_search(words):
     except httplib2.ServerNotFoundError:
         print("||COULD NOT CONNECT TO SERVER||")
         print("||MAYBE NO INTERNET CONNECTION||")
+    return 0
 
 
 ap = argparse.ArgumentParser(description="Script for converting Spotify songs to YouTube and much more.")
-ap.add_argument("-d", "--url-to-mp3", metavar="url",
+group_main = ap.add_mutually_exclusive_group()
+group_main.add_argument("-d", "--url-to-mp3", metavar="url",
 	help="url for YT video to download as a .mp3 file")
-ap.add_argument("-c", "--convert-mp3", metavar="path",
+group_main.add_argument("-c", "--convert-mp3", metavar="path", default=DEF_PATH,
 	help="path to folder where the files are ready to be converted to mp3")
+group_main.add_argument("-i", "--url-info", metavar="url",
+    help="url for YT video to output stream data")
+
 args = vars(ap.parse_args())
 print(args)
+
+# group_main - doesn't allow inside groups to be called at the same time
+#       group1 - url to mp3
+#                           - '-d' -> stores url
+#                           - '-p' -> stores path to download the file
+#       group2 - convert leftovers
+#                           - '-c' -> stores path where files are located
+#       group3 - csv conversion
+#                           - '-s' -> stores path where csv file is located
+#                           - '-p' -> stores path to download the files
+
+# converts url to mp3 file
+if args["url_to_mp3"]:
+    url = args["url_to_mp3"]
+    if url.startswith(YT_URL):
+        path = input("Press enter to use default download path\nPATH: ")
+        if path is '':
+            print("Using default path: {0}".format(DEF_PATH))
+            download_fnc(url, 0, DEF_PATH)
+            print('\n')
+            # now convert the downloaded file
+            convert_fnc(DEF_PATH)
+            print('\n')
+        else:
+            print("Download path: {0}\n".format(path))
+            download_fnc(url, 0, path)
+            print('\n')
+            # now convert the downloaded file
+            convert_fnc(path)
+            print('\n')
+    else:
+        print("Wrong URL format!")
+    exit(0)
+
+# converts leftover files to mp3
+elif args["convert_mp3"]:
+    path = args["convert_mp3"]
+    if path == DEF_PATH:
+        print("Using default path: {0}\n".format(DEF_PATH))
+        convert_fnc(DEF_PATH)
+    else:
+        print("Download path: {0}\n".format(path))
+        convert_fnc(path)
+    exit(0)
+
+# reads csv file, searches for the songs on YT then converts them to mp3
+elif args["csv"]:
+    path = os.path.normpath(args["convert_mp3"])
+    print("||OPENING CSV FILE||")
+    csv_read(path)
+    exit(0)
+
+# reads url and prints url stream data
+elif args["url_info"]:
+    url_info(args["url_info"])
+    exit(0)
 exit(0)
 
 while True:
     command = input(START_TEXT)
     # download as mp3
     if command == '1':
-        url = input("URL: ")
-        if url.startswith(YT_URL):
-            path = input("Press enter to use default download path\nPATH: ")
-            if path is '':
-                print("Using default path: {0}".format(DEF_PATH))
-                download_fnc(url, 0, DEF_PATH)
-                print('\n')
-                # now convert the downloaded file
-                convert_fnc(DEF_PATH)
-                print('\n')
-            else:
-                print("Download path: {0}\n".format(path))
-                download_fnc(url, 0, path)
-                print('\n')
-                # now convert the downloaded file
-                convert_fnc(path)
-                print('\n')
-        else:
-            print("Wrong URL format!")
         exit(0)
     elif command == '2':
         exit(0)
     # url info
     elif command == '3':
-        url_info(input("URL: "))
         exit(0)
     elif command == '4':
-        path = os.path.normpath(input("Path to CSV file: "))
-        print("||OPENING CSV FILE||")
-        csv_read(path)
         exit(0)
     # convert leftovers
     elif command == '5':
-        path = input("Press enter to use default download path\nPATH: ")
-        if path is '':
-            print("Using default path: {0}\n".format(DEF_PATH))
-            convert_fnc(DEF_PATH)
-        else:
-            print("Download path: {0}\n".format(path))
-            convert_fnc(path)
         exit(0)
     elif command == '6':
         query = input("Search on YT: ")
