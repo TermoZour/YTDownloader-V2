@@ -2,17 +2,18 @@
 # TODO - DON'T FORGET ABOUT USER ERRORS
 # TODO - add file converter (from webm to mp3, etc)
 
-import os
-import csv
-import urllib
-import httplib2
 import argparse
+import csv
+import os
+import urllib
 from pprint import pprint
 
 import ffmpeg
-from pytube import YouTube, exceptions
-from apis import YT_SEARCH_API_KEY
 import googleapiclient.discovery
+import httplib2
+from pytube import YouTube, exceptions
+
+from apis import YT_SEARCH_API_KEY
 
 YT_URL = "https://www.youtube.com/watch?v="
 DEF_PATH = "downloads"
@@ -75,7 +76,9 @@ def csv_read(path):
         with open(path, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                print("ID: {0} \nTitle: \"{1}\" \nArtist:\"{2}\" \nSpotify URL: \"{3}\"".format(row['#'], row['Title'], row['Artist'], row['Spotify URL']))
+                print("ID: {0} \nTitle: \"{1}\" \nArtist:\"{2}\" \nSpotify URL: \"{3}\"".format(row['#'], row['Title'],
+                                                                                                row['Artist'],
+                                                                                                row['Spotify URL']))
                 search_query = row['Title'] + ' - ' + row['Artist']
                 print(search_query)
                 print('\n')
@@ -103,7 +106,7 @@ def url_info(url):
 
 
 def yt_search(words):
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey = YT_SEARCH_API_KEY)
+    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=YT_SEARCH_API_KEY)
     try:
         request = youtube.search().list(
             part="snippet",
@@ -116,7 +119,9 @@ def yt_search(words):
         response = request.execute()
 
         for song in response['items']:
-            print("TITLE: {0} \nCHANNEL: {1} \nLINK: {2}\n".format(song['snippet']['title'], song['snippet']['channelTitle'], YT_URL + song['id']['videoId']))
+            print("TITLE: {0} \nCHANNEL: {1} \nLINK: {2}\n".format(song['snippet']['title'],
+                                                                   song['snippet']['channelTitle'],
+                                                                   YT_URL + song['id']['videoId']))
 
     except httplib2.ServerNotFoundError:
         print("||COULD NOT CONNECT TO SERVER||")
@@ -127,11 +132,11 @@ def yt_search(words):
 ap = argparse.ArgumentParser(description="Script for converting Spotify songs to YouTube and much more.")
 group_main = ap.add_mutually_exclusive_group()
 group_main.add_argument("-d", "--url-to-mp3", metavar="url",
-	help="url for YT video to download as a .mp3 file")
+                        help="url for YT video to download as a .mp3 file")
 group_main.add_argument("-c", "--convert-mp3", metavar="path", default=DEF_PATH,
-	help="path to folder where the files are ready to be converted to mp3")
+                        help="path to folder where the files are ready to be converted to mp3")
 group_main.add_argument("-i", "--url-info", metavar="url",
-    help="url for YT video to output stream data")
+                        help="url for YT video to output stream data")
 
 args = vars(ap.parse_args())
 print(args)
