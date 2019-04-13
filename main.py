@@ -1,6 +1,4 @@
-# TODO - repeat download in case of error 403 Forbidden
 # TODO - DON'T FORGET ABOUT USER ERRORS
-# TODO - add file converter (from webm to mp3, etc)
 
 import argparse
 import csv
@@ -16,38 +14,29 @@ from pytube import YouTube, exceptions
 from apis import YT_SEARCH_API_KEY
 
 YT_URL = "https://www.youtube.com/watch?v="
+YT_PLAYLIST_URL = "https://www.youtube.com/playlist?list="
 DEF_PATH = "downloads"
 
 
-# https://www.youtube.com/watch?v=W58FBW93nRc
-def download_fnc(url, download_type, download_path):
-    if download_type is 0:
-        # download as mp3
-        try:
-            query = YouTube(url)
-        except exceptions.VideoUnavailable:
-            print("||VIDEO NOT FOUND||")
-            return 0
-        stream = query.streams.filter(only_audio=True).order_by("abr").last()
-        # check if file is already downloaded
-        file = os.path.splitext(os.path.join(
-            download_path, stream.default_filename))[0] + ".mp3"
-        if os.path.isfile(file):
-            print("||ALREADY DOWNLOADED|| ~~ {0}".format(
-                stream.default_filename))
-        else:
-            # check if download path folder exists
-            if not os.path.isdir(download_path):
-                os.mkdir(download_path)
+def download_video(url, download_path):
+    query = YouTube(url)
+    stream = query.streams.filter(only_audio=True).order_by("abr").last()
 
-            print("||DOWNLOADING|| ~~ \"{0}\"\n||DETAILS|| {1}".format(
-                query.title, stream))
-            stream.download(output_path=download_path)
-            print("||FINISHED|| ~~ \"{0}\"".format(query.title))
-    elif download_type is 2:
-        # download as mp4 video - highest quality available
-        return 0
-    return 0
+    # check if file is already downloaded
+    file = os.path.splitext(os.path.join(
+        download_path, stream.default_filename))[0] + ".mp3"
+    if os.path.isfile(file):
+        print("||ALREADY DOWNLOADED|| ~~ {0}".format(
+            stream.default_filename))
+    else:
+        # check if download path folder exists
+        if not os.path.isdir(download_path):
+            os.mkdir(download_path)
+
+        print("||DOWNLOADING|| \"{0}\"\n||DETAILS|| {1}".format(
+            query.title, stream))
+        stream.download(output_path=download_path)
+        print("||FINISHED|| ~~ \"{0}\"".format(query.title))
 
 
 def convert_fnc(file_path):
@@ -64,44 +53,33 @@ def convert_fnc(file_path):
                     os.remove(file)
     except FileNotFoundError:
         print("||FILES NOT FOUND||")
+        exit(1)
     print("||CONVERSION FINISHED||")
-    return 0
-
-
-def csv_read(path):
-    try:
-        with open(path, newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                print(
-                    "ID: {0} \n\
-                    Title: \"{1}\" \n\
-                    Artist:\"{2}\" \n\
-                    Spotify URL: \"{3}\"".format(row['#'], row['Title'], row['Artist'], row['Spotify URL']))
-                search_query = row['Title'] + ' - ' + row['Artist']
-                print(search_query)
-                print('\n')
-    except FileNotFoundError:
-        print("||CSV FILE NOT FOUND|| ~~ \"{0}\"".format(path))
-    return 0
 
 
 def url_info(url):
-    try:
-        query = YouTube(url)
-        streams = query.streams.filter(only_audio=True).order_by("abr").all()
-        print("AUDIO ONLY")
-        pprint(streams)
-        print()
+    query = YouTube(url)
+    streams = query.streams.filter(only_audio=True).order_by("abr").all()
+    print("AUDIO ONLY")
+    pprint(streams)
 
-        print("ALL")
-        streams = query.streams.all()
-        pprint(streams)
-        print()
-    except urllib.error.URLError:
-        print("||COULD NOT SEARCH URL||")
-        print("||MAYBE NO INTERNET CONNECTION||")
-    return 0
+    print("ALL")
+    streams = query.streams.all()
+    pprint(streams)
+
+
+def playlist_info(url):
+    youtube = googleapiclient.discovery.build(
+        "youtube", "v3", developerKey=YT_SEARCH_API_KEY)
+    request = youtube.playlistItems().list(
+        part="contentDetails",
+        maxResults=50,
+        playlistId=url.replace(YT_PLAYLIST_URL, '')
+    )
+
+    response = request.execute()
+
+    return [song["contentDetails"]["videoId"] for song in response["items"]]
 
 
 def yt_search(words):
@@ -125,72 +103,151 @@ def yt_search(words):
                 LINK: {2}\n".format(song['snippet']['title'],
                                     song['snippet']['channelTitle'],
                                     YT_URL + song['id']['videoId']))
-
+        return 0
     except httplib2.ServerNotFoundError:
         print("||COULD NOT CONNECT TO SERVER||")
         print("||MAYBE NO INTERNET CONNECTION||")
-    return 0
+        return 1
+
+
+def csv_read(path):
+    with open(path, 'r', newline='') as csv_file:
+        reader = csv.DictReader(csv_file)
+
+    search_query = {}
+    for row in reader:
+        # print("ID: {0} \n\Title: \"{1}\" \n\Artist:\"{2}\" \n\Spotify URL:")
+        search_query.update({"id": row['#'], "title": row['Title'], "artist": row['Artist'], "spotify-url": row['Spotify URL']})
+        print('\n')
+    pprint(search_query)
 
 
 ap = argparse.ArgumentParser(
     description="Script for converting Spotify songs to YouTube and much more.")
 group_main = ap.add_mutually_exclusive_group(required=True)
 group_main.add_argument("-d", "--url-to-mp3", metavar="url",
-                        help="url for YT video to download as a .mp3 file")
+                        help="download YouTube video from URL and convert it to .mp3")
+group_main.add_argument("-p", "--playlist-to-mp3", metavar="url",
+                        help="downloads all songs from YouTube playlist URL and converts them to .mp3")
 group_main.add_argument("-i", "--url-info", metavar="url",
-                        help="url for YT video to output stream data")
-group_main.add_argument("-csv", "--convert-csv", metavar="path",
-                        help="path to CSV file to convert to .mp3")
+                        help="get YouTube video stream data")
+group_main.add_argument("-ip", "--playlist-info", metavar="url",
+                        help="get YouTube playlist stream data")
 group_main.add_argument("-c", "--convert-mp3", metavar="path",
-                        help="path to folder where the files are ready to be converted to .mp3")
+                        help="convert leftover files to .mp3")
+group_main.add_argument("-csv", "--convert-csv", metavar="path",
+                        help="download songs from CSV file and convert them to .mp3")
 
 args = vars(ap.parse_args())
-
-# group_main - doesn't allow inside groups to be called at the same time
-#       group1 - url to mp3
-#                           - '-d' -> stores url
-#                           - '-p' -> stores path to download the file
-#       group2 - convert leftovers
-#                           - '-c' -> stores path where files are located
-#       group3 - csv conversion
-#                           - '-s' -> stores path where csv file is located
-#                           - '-p' -> stores path to download the files
 
 
 # converts url to mp3 file
 if args["url_to_mp3"]:
     url = args["url_to_mp3"]
+
     if url.startswith(YT_URL):
         path = input("Press enter to use default download path\nPATH: ")
+
         if path is '':
             print("Using default path: {0}".format(DEF_PATH))
-            download_fnc(url, 0, DEF_PATH)
-            print('\n')
+            try:
+                download_video(url, DEF_PATH)
+            except exceptions.VideoUnavailable:
+                print("||VIDEO NOT FOUND||")
+                exit(1)
+
             # now convert the downloaded file
             convert_fnc(DEF_PATH)
-            print('\n')
         else:
             print("Download path: {0}\n".format(path))
-            download_fnc(url, 0, path)
-            print('\n')
+            # download the source video file
+            try:
+                download_video(url, path)
+            except exceptions.VideoUnavailable:
+                print("||VIDEO NOT FOUND||")
+                exit(1)
+
             # now convert the downloaded file
             convert_fnc(path)
-            print('\n')
     else:
         print("Wrong URL format!")
+        exit(1)
+    exit(0)
+
+# converts playlist to mp3
+elif args["playlist_to_mp3"]:
+    url = args["url_to_mp3"]
+
+    if url.startswith(YT_PLAYLIST_URL):
+        path = input("Press enter to use default download path\nPATH: ")
+
+        if path is '':
+            print("Using default path: {0}".format(DEF_PATH))
+
+            try:
+                playlist_info(url)
+            except httplib2.ServerNotFoundError:
+                print("||COULD NOT CONNECT TO SERVER||")
+                print("||MAYBE NO INTERNET CONNECTION||")
+                exit(1)
+
+            for id in playlist_info(url):
+                try:
+                    download_video(YT_URL + id, DEF_PATH)
+                except exceptions.VideoUnavailable:
+                    print("||VIDEO NOT FOUND||")
+                    exit(1)
+
+                # now convert the downloaded file
+                convert_fnc(DEF_PATH)
+        else:
+            print("Download path: {0}\n".format(path))
+
+            try:
+                playlist_info(url)
+            except httplib2.ServerNotFoundError:
+                print("||COULD NOT CONNECT TO SERVER||")
+                print("||MAYBE NO INTERNET CONNECTION||")
+                exit(1)
+
+            for id in playlist_info(url):
+                try:
+                    download_video(YT_URL + id, DEF_PATH)
+                except exceptions.VideoUnavailable:
+                    print("||VIDEO NOT FOUND||")
+                    exit(1)
+
+                # now convert the downloaded file
+                convert_fnc(DEF_PATH)
+    else:
+        print("Wrong URL format!")
+        exit(1)
     exit(0)
 
 # reads url and prints url stream data
 elif args["url_info"]:
-    url_info(args["url_info"])
+    try:
+        url_info(args["url_info"])
+    except URLError:
+        print("||COULD NOT SEARCH URL||")
+        print("||MAYBE NO INTERNET CONNECTION||")
+        exit(1)
     exit(0)
 
-# reads csv file, searches for the songs on YT then converts them to mp3
-elif args["convert_csv"]:
-    path = os.path.normpath(args["convert_mp3"])
-    print("||OPENING CSV FILE||")
-    csv_read(path)
-    exit(0)
+# reads playlist url and prints video ids
+elif args["playlist_info"]:
+    url = args["playlist_info"]
+    if url.startswith(YT_PLAYLIST_URL):
+        try:
+            pprint(playlist_info(url))
+        except httplib2.ServerNotFoundError:
+            print("||COULD NOT CONNECT TO SERVER||")
+            print("||MAYBE NO INTERNET CONNECTION||")
+            exit(1)
+        exit(0)
+    else:
+        print("Wrong URL format!")
+        exit(1)
 
 # converts leftover files to mp3
 elif args["convert_mp3"]:
@@ -199,9 +256,21 @@ elif args["convert_mp3"]:
         path = DEF_PATH
         print("Using default path: {0}\n".format(DEF_PATH))
         convert_fnc(DEF_PATH)
+        exit(0)
     else:
         print("Download path: {0}\n".format(path))
         convert_fnc(path)
-    exit(0)
+        exit(0)
 
-exit(0)
+# reads csv file, searches for the songs on YT then converts them to mp3
+elif args["convert_csv"]:
+    path = args["convert_csv"]
+    print("||OPENING CSV FILE||")
+    try:
+        csv_read(path)
+    except FileNotFoundError:
+        print("||CSV FILE NOT FOUND|| ~~ \"{0}\"".format(path))
+        exit(1)
+
+    # send songs to the yt_search(words) function
+    exit(0)
