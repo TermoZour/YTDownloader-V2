@@ -176,7 +176,7 @@ if args["url_to_mp3"]:
 
 # converts playlist to mp3
 elif args["playlist_to_mp3"]:
-    url = args["url_to_mp3"]
+    url = args["playlist_to_mp3"]
 
     if url.startswith(YT_PLAYLIST_URL):
         path = input("Press enter to use default download path\nPATH: ")
