@@ -136,7 +136,7 @@ group_main.add_argument("-ip", "--playlist-info", metavar="url",
 group_main.add_argument("-c", "--convert-mp3", metavar="path",
                         help="convert leftover files to .mp3")
 group_main.add_argument("-csv", "--convert-csv", metavar="path",
-                        help="download songs from CSV file and convert them to .mp3")
+                        help="downloads songs from CSV file and converts them to .mp3")
 
 args = vars(ap.parse_args())
 
