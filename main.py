@@ -39,10 +39,10 @@ def download_video(video_url):
         print("||FINISHED|| ~~ \"{0}\"".format(query.title))
 
 
-def convert_fnc(file_path):
+def convert_fnc(files_path):
     try:
-        for filename in os.listdir(file_path):
-            file = os.path.join(file_path, filename)
+        for filename in os.listdir(files_path):
+            file = os.path.join(files_path, filename)
             if os.path.isfile(file):
                 if not os.path.splitext(file)[1] == ".mp3":
                     print("||FOUND FILE|| ~~ {0}".format(file))
