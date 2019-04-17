@@ -1,3 +1,5 @@
+googleapiclient
+httplib2
 pytube
 ffmpeg-python
 google-api-python-client
