@@ -228,7 +228,7 @@ elif args["playlist_to_mp3"]:
 elif args["url_info"]:
     try:
         url_info(args["url_info"])
-    except URLError:
+    except urllib.error.URLError:
         print("||COULD NOT SEARCH URL||")
         print("||MAYBE NO INTERNET CONNECTION||")
         exit(1)
