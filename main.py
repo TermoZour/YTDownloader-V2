@@ -38,22 +38,21 @@ def download_video(video_url):
 
         print("||DOWNLOADING|| \"{0}\"\n||DETAILS|| {1}".format(
             query.title, stream))
-        stream.download(output_path=DEF_PATH)
+        path = stream.download(output_path=DEF_PATH)
         print("||FINISHED|| ~~ \"{0}\"".format(query.title))
+        return path
 
 
-def convert_fnc(files_path):
+def convert_fnc(file_path):
     try:
-        for filename in os.listdir(files_path):
-            file = os.path.join(files_path, filename)
-            if os.path.isfile(file):
-                if not os.path.splitext(file)[1] == ".mp3":
-                    print("||FOUND FILE|| ~~ {0}".format(file))
-                    stream = ffmpeg.input(file)
-                    stream = ffmpeg.output(stream, file.replace(
-                        os.path.splitext(file)[1], ".mp3"), format="mp3")
-                    ffmpeg.run(stream)
-                    os.remove(file)
+        if os.path.isfile(file_path):
+            if not os.path.splitext(file_path)[1] == ".mp3":
+                print("||FOUND FILE|| ~~ {0}".format(file_path))
+                stream = ffmpeg.input(file_path)
+                stream = ffmpeg.output(stream, file_path.replace(
+                    os.path.splitext(file_path)[1], ".mp3"), format="mp3")
+                ffmpeg.run(stream)
+                os.remove(file_path)
     except FileNotFoundError:
         print("||FILES NOT FOUND||")
         exit(1)
@@ -150,13 +149,15 @@ if args["url_to_mp3"]:
     if url.startswith(YT_URL):
         print("Using path: {0}".format(DEF_PATH))
         try:
-            download_video(url)
+            path = download_video(url)
+
+            # now convert the downloaded file
+            convert_fnc(path)
         except exceptions.VideoUnavailable:
             print("||VIDEO NOT FOUND||")
             exit(1)
 
-        # now convert the downloaded file
-        convert_fnc(DEF_PATH)
+
     else:
         print("Wrong URL format!")
         exit(1)
