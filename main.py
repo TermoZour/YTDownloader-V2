@@ -7,6 +7,7 @@ import csv
 import os
 import urllib
 from pprint import pprint
+import pickle
 
 import ffmpeg
 import googleapiclient.discovery
@@ -18,6 +19,46 @@ from apis import YT_SEARCH_API_KEY, SPOTIFY_API_KEY
 YT_URL = "https://www.youtube.com/watch?v="
 YT_PLAYLIST_URL = "https://www.youtube.com/playlist?list="
 DEF_PATH = "downloads"
+
+
+def main():
+    yt_videos = [{'name': "Slippy - Show Me (feat. Sara Skinner) [Monstercat Lyric Video]",
+                 'isDownloaded': False,
+                 'isConverted': False,
+                 'yt_url': "https://www.youtube.com/watch?v=W58FBW93nRc",
+                 'path': "downloads"},
+                {'name': "RIOT - Overkill [Monstercat Release]",
+                 'isDownloaded': False,
+                 'isConverted': False,
+                 'yt-url': "https://www.youtube.com/watch?v=A8pOVirjGF0",
+                 'path': "downloads/some_folder"}]
+
+    with open('history.pickle', 'wb') as pickle_file:
+        pickle.dump(yt_videos, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # load pickle file
+    with open('history.pickle', 'rb') as pickle_file:
+        history = pickle.load(pickle_file)
+
+    print("||LOADED FILE|| ~~ SHOWING CONTENT: ")
+    for entry in history:
+        if entry['isDownloaded'] is False:
+            try:
+                # download entry
+                entry['isDownloaded'] = True
+            except IOError:  # or an actual error, not a placeholder
+                print("stuff about error")
+
+        if entry['isDownloaded'] is True and entry['isConverted'] is False:
+            try:
+                # convert entry
+                entry['isConverted'] = True
+            except IOError:  # or an actual error, not a placeholder
+                print("stuff about error")
+
+    # load songs,
+
+    exit(0)
 
 
 def download_video(video_url, download_path):
@@ -126,7 +167,7 @@ def csv_read(csv_path):
 
 ap = argparse.ArgumentParser(
     description="Script for converting Spotify songs to YouTube and much more.")
-group_main = ap.add_mutually_exclusive_group(required=True)
+group_main = ap.add_mutually_exclusive_group(required=False)
 group_main.add_argument("-d", "--url-to-mp3", metavar="url",
                         help="download YouTube video from URL and convert it to .mp3")
 group_main.add_argument("-p", "--playlist-to-mp3", metavar="url",
@@ -239,3 +280,5 @@ elif args["convert_csv"]:
 
     # send songs to the yt_search(words) function
     exit(0)
+
+main()
