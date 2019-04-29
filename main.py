@@ -30,6 +30,7 @@ def download_video(video_url, download_path):
     if os.path.isfile(file):
         print("||ALREADY DOWNLOADED|| ~~ {0}".format(
             stream.default_filename))
+        return file
     else:
         # check if download path folder exists
         if not os.path.isdir(download_path):
@@ -165,8 +166,6 @@ elif args["playlist_to_mp3"]:
     url = args["playlist_to_mp3"]
 
     if url.startswith(YT_PLAYLIST_URL):
-        path = input("Press enter to use default download path\nPATH: ")
-
         print("Using default path: {0}".format(DEF_PATH))
 
         try:
@@ -178,7 +177,7 @@ elif args["playlist_to_mp3"]:
 
         for video_id in playlist_info(url):
             try:
-                path = download_video(YT_URL + video_id)
+                path = download_video(YT_URL + video_id, DEF_PATH)
 
                 # now convert the downloaded file
                 convert_fnc(path)
