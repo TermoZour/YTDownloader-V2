@@ -7,6 +7,7 @@ import csv
 import os
 import urllib
 from pprint import pprint
+import pickle
 
 import ffmpeg
 import googleapiclient.discovery
@@ -20,24 +21,64 @@ YT_PLAYLIST_URL = "https://www.youtube.com/playlist?list="
 DEF_PATH = "downloads"
 
 
-def download_video(video_url):
+def main():
+    yt_videos = [{'name': "Slippy - Show Me (feat. Sara Skinner) [Monstercat Lyric Video]",
+                 'isDownloaded': False,
+                 'isConverted': False,
+                 'yt_url': "https://www.youtube.com/watch?v=W58FBW93nRc",
+                 'path': "downloads"},
+                {'name': "RIOT - Overkill [Monstercat Release]",
+                 'isDownloaded': False,
+                 'isConverted': False,
+                 'yt-url': "https://www.youtube.com/watch?v=A8pOVirjGF0",
+                 'path': "downloads/some_folder"}]
+
+    with open('history.pickle', 'wb') as pickle_file:
+        pickle.dump(yt_videos, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # load pickle file
+    with open('history.pickle', 'rb') as pickle_file:
+        history = pickle.load(pickle_file)
+
+    print("||LOADED FILE|| ~~ SHOWING CONTENT: ")
+    for entry in history:
+        if entry['isDownloaded'] is False:
+            try:
+                # download entry
+                entry['isDownloaded'] = True
+            except IOError:  # or an actual error, not a placeholder
+                print("stuff about error")
+
+        if entry['isDownloaded'] is True and entry['isConverted'] is False:
+            try:
+                # convert entry
+                entry['isConverted'] = True
+            except IOError:  # or an actual error, not a placeholder
+                print("stuff about error")
+
+    # load songs,
+
+    exit(0)
+
+
+def download_video(video_url, download_path):
     query = YouTube(video_url)
     stream = query.streams.filter(only_audio=True).order_by("abr").last()
 
     # check if file is already downloaded
     file = os.path.splitext(os.path.join(
-        DEF_PATH, stream.default_filename))[0] + ".mp3"
+        download_path, stream.default_filename))[0] + ".mp3"
     if os.path.isfile(file):
         print("||ALREADY DOWNLOADED|| ~~ {0}".format(
             stream.default_filename))
     else:
         # check if download path folder exists
-        if not os.path.isdir(DEF_PATH):
-            os.mkdir(DEF_PATH)
+        if not os.path.isdir(download_path):
+            os.mkdir(download_path)
 
         print("||DOWNLOADING|| \"{0}\"\n||DETAILS|| {1}".format(
             query.title, stream))
-        file_path = stream.download(output_path=DEF_PATH)
+        file_path = stream.download(output_path=download_path)
         print("||FINISHED|| ~~ \"{0}\"".format(query.title))
         return file_path
 
@@ -125,7 +166,7 @@ def csv_read(csv_path):
 
 ap = argparse.ArgumentParser(
     description="Script for converting Spotify songs to YouTube and much more.")
-group_main = ap.add_mutually_exclusive_group(required=True)
+group_main = ap.add_mutually_exclusive_group(required=False)
 group_main.add_argument("-d", "--url-to-mp3", metavar="url",
                         help="download YouTube video from URL and convert it to .mp3")
 group_main.add_argument("-p", "--playlist-to-mp3", metavar="url",
@@ -148,7 +189,7 @@ if args["url_to_mp3"]:
     if url.startswith(YT_URL):
         print("Using path: {0}".format(DEF_PATH))
         try:
-            path = download_video(url)
+            path = download_video(url, DEF_PATH)
 
             # now convert the downloaded file
             convert_fnc(path)
@@ -165,46 +206,24 @@ elif args["playlist_to_mp3"]:
     url = args["playlist_to_mp3"]
 
     if url.startswith(YT_PLAYLIST_URL):
-        path = input("Press enter to use default download path\nPATH: ")
+        print("Using default path: {0}".format(DEF_PATH))
 
-        if path is '':
-            print("Using default path: {0}".format(DEF_PATH))
+        try:
+            playlist_info(url)
+        except httplib2.ServerNotFoundError:
+            print("||COULD NOT CONNECT TO SERVER||")
+            print("||MAYBE NO INTERNET CONNECTION||")
+            exit(1)
 
+        for video_id in playlist_info(url):
             try:
-                playlist_info(url)
-            except httplib2.ServerNotFoundError:
-                print("||COULD NOT CONNECT TO SERVER||")
-                print("||MAYBE NO INTERNET CONNECTION||")
-                exit(1)
-
-            for video_id in playlist_info(url):
-                try:
-                    download_video(YT_URL + video_id)
-                except exceptions.VideoUnavailable:
-                    print("||VIDEO NOT FOUND||")
-                    exit(1)
+                path = download_video(YT_URL + video_id, DEF_PATH)
 
                 # now convert the downloaded file
-                convert_fnc(DEF_PATH)
-        else:
-            print("Download path: {0}\n".format(path))
-
-            try:
-                playlist_info(url)
-            except httplib2.ServerNotFoundError:
-                print("||COULD NOT CONNECT TO SERVER||")
-                print("||MAYBE NO INTERNET CONNECTION||")
+                convert_fnc(path)
+            except exceptions.VideoUnavailable:
+                print("||VIDEO NOT FOUND||")
                 exit(1)
-
-            for video_id in playlist_info(url):
-                try:
-                    download_video(YT_URL + video_id)
-                except exceptions.VideoUnavailable:
-                    print("||VIDEO NOT FOUND||")
-                    exit(1)
-
-                # now convert the downloaded file
-                convert_fnc(DEF_PATH)
     else:
         print("Wrong URL format!")
         exit(1)
@@ -260,3 +279,5 @@ elif args["convert_csv"]:
 
     # send songs to the yt_search(words) function
     exit(0)
+
+main()
