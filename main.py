@@ -37,9 +37,9 @@ def download_video(video_url):
 
         print("||DOWNLOADING|| \"{0}\"\n||DETAILS|| {1}".format(
             query.title, stream))
-        path = stream.download(output_path=DEF_PATH)
+        file_path = stream.download(output_path=DEF_PATH)
         print("||FINISHED|| ~~ \"{0}\"".format(query.title))
-        return path
+        return file_path
 
 
 def convert_fnc(file_path):
@@ -155,8 +155,6 @@ if args["url_to_mp3"]:
         except exceptions.VideoUnavailable:
             print("||VIDEO NOT FOUND||")
             exit(1)
-
-
     else:
         print("Wrong URL format!")
         exit(1)
