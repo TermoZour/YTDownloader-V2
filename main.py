@@ -1,5 +1,9 @@
 # TODO - DON'T FORGET ABOUT USER ERRORS
 # TODO - USE DICT TO STORE INFO ABOUT SONGS STATE IN PLAYLIST (is_downloaded, is_converted, etc) WITH "PICKLE"
+# load playlist url -> get playlist name
+# check for history file with name 'playlist name'
+# if no history file detected -> create history file and start downloading songs
+# if history file detected -> go through file and download what's left
 # TODO - ADD MULTI-THREADED PLAYLIST DOWNLOAD - MULTIPROCESS
 
 import argparse
@@ -19,46 +23,6 @@ from apis import YT_SEARCH_API_KEY, SPOTIFY_API_KEY
 YT_URL = "https://www.youtube.com/watch?v="
 YT_PLAYLIST_URL = "https://www.youtube.com/playlist?list="
 DEF_PATH = "downloads"
-
-
-def main():
-    yt_videos = [{'name': "Slippy - Show Me (feat. Sara Skinner) [Monstercat Lyric Video]",
-                 'isDownloaded': False,
-                 'isConverted': False,
-                 'yt_url': "https://www.youtube.com/watch?v=W58FBW93nRc",
-                 'path': "downloads"},
-                {'name': "RIOT - Overkill [Monstercat Release]",
-                 'isDownloaded': False,
-                 'isConverted': False,
-                 'yt-url': "https://www.youtube.com/watch?v=A8pOVirjGF0",
-                 'path': "downloads/some_folder"}]
-
-    with open('history.pickle', 'wb') as pickle_file:
-        pickle.dump(yt_videos, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # load pickle file
-    with open('history.pickle', 'rb') as pickle_file:
-        history = pickle.load(pickle_file)
-
-    print("||LOADED FILE|| ~~ SHOWING CONTENT: ")
-    for entry in history:
-        if entry['isDownloaded'] is False:
-            try:
-                # download entry
-                entry['isDownloaded'] = True
-            except IOError:  # or an actual error, not a placeholder
-                print("stuff about error")
-
-        if entry['isDownloaded'] is True and entry['isConverted'] is False:
-            try:
-                # convert entry
-                entry['isConverted'] = True
-            except IOError:  # or an actual error, not a placeholder
-                print("stuff about error")
-
-    # load songs,
-
-    exit(0)
 
 
 def download_video(video_url, download_path):
@@ -102,7 +66,9 @@ def convert_fnc(file_path):
 
 def url_info(video_url):
     query = YouTube(video_url)
+
     streams = query.streams.filter(only_audio=True).order_by("abr").all()
+
     print("AUDIO ONLY")
     pprint(streams)
 
@@ -114,15 +80,24 @@ def url_info(video_url):
 def playlist_info(playlist_url):
     youtube = googleapiclient.discovery.build(
         "youtube", "v3", developerKey=YT_SEARCH_API_KEY)
-    request = youtube.playlistItems().list(
+
+    playlist_request = youtube.playlists().list(
+        part="snippet",
+        maxResults=50,
+        id=playlist_url.replace(YT_PLAYLIST_URL, '')
+    )
+
+    items_request = youtube.playlistItems().list(
         part="contentDetails",
         maxResults=50,
         playlistId=playlist_url.replace(YT_PLAYLIST_URL, '')
     )
 
-    response = request.execute()
+    playlist_response = playlist_request.execute()
+    items_response = items_request.execute()
 
-    return [song["contentDetails"]["videoId"] for song in response["items"]]
+    return {'title': playlist_response['items'][0]['snippet']['title'],
+            'songs': [song["contentDetails"]["videoId"] for song in items_response["items"]]}
 
 
 def yt_search(words):
@@ -166,8 +141,8 @@ def csv_read(csv_path):
 
 
 ap = argparse.ArgumentParser(
-    description="Script for converting Spotify songs to YouTube and much more.")
-group_main = ap.add_mutually_exclusive_group(required=False)
+    description="Script for downloading YouTube songs and much more.")
+group_main = ap.add_mutually_exclusive_group(required=True)
 group_main.add_argument("-d", "--url-to-mp3", metavar="url",
                         help="download YouTube video from URL and convert it to .mp3")
 group_main.add_argument("-p", "--playlist-to-mp3", metavar="url",
@@ -202,8 +177,42 @@ if args["url_to_mp3"]:
         exit(1)
     exit(0)
 
-# converts playlist to mp3
+# converts playlist to list of song URLs then each song to mp3
 elif args["playlist_to_mp3"]:
+    yt_videos = [{'name': "Slippy - Show Me (feat. Sara Skinner) [Monstercat Lyric Video]",
+                  'is_downloaded': False,
+                  'is_converted': False,
+                  'yt_url': "https://www.youtube.com/watch?v=W58FBW93nRc",
+                  'path': "downloads"},
+                 {'name': "RIOT - Overkill [Monstercat Release]",
+                  'is_downloaded': False,
+                  'is_converted': False,
+                  'yt-url': "https://www.youtube.com/watch?v=A8pOVirjGF0",
+                  'path': "downloads/some_folder"}]
+    # create pickle file
+    with open('playlist.pickle', 'wb') as pickle_file:
+        pickle.dump(yt_videos, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # load pickle file
+    with open('playlist.pickle', 'rb') as pickle_file:
+        history = pickle.load(pickle_file)
+
+    print("||LOADED FILE||")
+    for entry in history:
+        if entry['is_downloaded'] is False:
+            try:
+                # download entry
+                entry['is_downloaded'] = True
+            except IOError:  # or an actual error, not a placeholder
+                print("stuff about error")
+
+        if entry['is_downloaded'] is True and entry['is_converted'] is False:
+            try:
+                # convert entry
+                entry['is_converted'] = True
+            except IOError:  # or an actual error, not a placeholder
+                print("stuff about error")
+
     url = args["playlist_to_mp3"]
 
     if url.startswith(YT_PLAYLIST_URL):
@@ -216,7 +225,7 @@ elif args["playlist_to_mp3"]:
             print("||MAYBE NO INTERNET CONNECTION||")
             exit(1)
 
-        for video_id in playlist_info(url):
+        for video_id in playlist_info(url)['songs']:
             try:
                 path = download_video(YT_URL + video_id, DEF_PATH)
 
@@ -280,5 +289,3 @@ elif args["convert_csv"]:
 
     # send songs to the yt_search(words) function
     exit(0)
-
-main()
