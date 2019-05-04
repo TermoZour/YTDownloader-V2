@@ -4,4 +4,4 @@ downloads/
 venv/
 apis.py
 __pycache__/
-history.pickle
+*.history
