@@ -1,22 +1,17 @@
 # TODO - DON'T FORGET ABOUT USER ERRORS
-# TODO - USE DICT TO STORE INFO ABOUT SONGS STATE IN PLAYLIST (is_downloaded, is_converted, etc) WITH "PICKLE"
-# load playlist url -> get playlist name
-# check for history file with name 'playlist name'
-# if no history file detected -> create history file and start downloading songs
-# if history file detected -> go through file and download what's left
 # TODO - ADD MULTI-THREADED PLAYLIST DOWNLOAD - MULTIPROCESS
 
 import argparse
 import csv
+import json
 import os
 import urllib
 from pprint import pprint
-import pickle
 
 import ffmpeg
 import googleapiclient.discovery
 import httplib2
-from pytube import YouTube, exceptions
+from pytube import YouTube, exceptions, helpers
 
 from apis import YT_SEARCH_API_KEY
 
@@ -41,8 +36,8 @@ def download_video(video_url, download_path):
         if not os.path.isdir(download_path):
             os.mkdir(download_path)
 
-        print("||DOWNLOADING|| \"{0}\"\n||DETAILS|| {1}".format(
-            query.title, stream))
+        print("||DOWNLOADING|| \"{0}\"\n||DETAILS|| {1}\n||PATH|| {2}".format(
+            query.title, stream, download_path))
         file_path = stream.download(output_path=download_path)
         print("||FINISHED|| ~~ \"{0}\"".format(query.title))
         return file_path
@@ -88,7 +83,7 @@ def playlist_info(playlist_url):
     )
 
     items_request = youtube.playlistItems().list(
-        part="contentDetails",
+        part="snippet",
         maxResults=50,
         playlistId=playlist_url.replace(YT_PLAYLIST_URL, '')
     )
@@ -102,15 +97,15 @@ def playlist_info(playlist_url):
 
     if total_results < 50:
         for song in items_response['items']:
-            songs.append(song['contentDetails']['videoId'])
+            songs.append({'title': song['snippet']['title'], 'id': song['snippet']['resourceId']['videoId']})
     else:
         results = total_results
         while results >= 50:
             for song in items_response['items']:
-                songs.append(song['contentDetails']['videoId'])
+                songs.append({'title': song['snippet']['title'], 'id': song['snippet']['resourceId']['videoId']})
 
             items_request = youtube.playlistItems().list(
-                part="contentDetails",
+                part="snippet",
                 maxResults=50,
                 playlistId=playlist_url.replace(YT_PLAYLIST_URL, ''),
                 pageToken=items_response['nextPageToken']
@@ -119,13 +114,7 @@ def playlist_info(playlist_url):
             items_response = items_request.execute()
 
         for song in items_response['items']:
-            songs.append(song['contentDetails']['videoId'])
-
-    print("PLAYLIST RESPONSE: ")
-    pprint(playlist_response)
-    print("\n---\nITEMS RESPONSE:")
-    pprint(items_response)
-    print(len(songs))
+            songs.append({'title': song['snippet']['title'], 'id': song['snippet']['resourceId']['videoId']})
 
     return {'playlist_title': playlist_response['items'][0]['snippet']['title'],
             'songs': songs}
@@ -203,6 +192,11 @@ if args['url_to_mp3']:
         except exceptions.VideoUnavailable:
             print("||VIDEO NOT FOUND||")
             exit(1)
+        except urllib.error.HTTPError:
+            path = download_video(url, DEF_PATH)
+
+            # now convert the downloaded file
+            convert_fnc(path)
     else:
         print("Wrong URL format!")
         exit(1)
@@ -210,45 +204,9 @@ if args['url_to_mp3']:
 
 # converts playlist to list of song URLs then each song to mp3
 elif args['playlist_to_mp3']:
-    yt_videos = [{'name': "Slippy - Show Me (feat. Sara Skinner) [Monstercat Lyric Video]",
-                  'is_downloaded': False,
-                  'is_converted': False,
-                  'yt_url': "https://www.youtube.com/watch?v=W58FBW93nRc",
-                  'path': "downloads"},
-                 {'name': "RIOT - Overkill [Monstercat Release]",
-                  'is_downloaded': False,
-                  'is_converted': False,
-                  'yt-url': "https://www.youtube.com/watch?v=A8pOVirjGF0",
-                  'path': "downloads/some_folder"}]
-    # create pickle file
-    with open('playlist.pickle', 'wb') as pickle_file:
-        pickle.dump(yt_videos, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # load pickle file
-    with open('playlist.pickle', 'rb') as pickle_file:
-        history = pickle.load(pickle_file)
-
-    print("||LOADED FILE||")
-    for entry in history:
-        if entry['is_downloaded'] is False:
-            try:
-                # download entry
-                entry['is_downloaded'] = True
-            except IOError:  # or an actual error, not a placeholder
-                print("stuff about error")
-
-        if entry['is_downloaded'] is True and entry['is_converted'] is False:
-            try:
-                # convert entry
-                entry['is_converted'] = True
-            except IOError:  # or an actual error, not a placeholder
-                print("stuff about error")
-
     url = args['playlist_to_mp3']
 
     if url.startswith(YT_PLAYLIST_URL):
-        print("Using default path: {0}".format(DEF_PATH))
-
         try:
             playlist_info(url)
         except httplib2.ServerNotFoundError:
@@ -256,15 +214,75 @@ elif args['playlist_to_mp3']:
             print("||MAYBE NO INTERNET CONNECTION||")
             exit(1)
 
-        for video_id in playlist_info(url)['songs']:
-            try:
-                path = download_video(YT_URL + video_id, DEF_PATH)
+        # check for history file to resume unfinished business
+        if os.path.isfile(playlist_info(url)['playlist_title'] + '.history'):
+            # there is already a file for this playlist
+            if os.path.getsize(playlist_info(url)['playlist_title'] + '.history') > 0:
+                with open(playlist_info(url)['playlist_title'] + '.history', 'r') as json_file:
+                    history = json.load(json_file)
 
-                # now convert the downloaded file
-                convert_fnc(path)
+                    if isinstance(history, list):
+                        for entry in history:
+                            if not all(
+                                    keys in entry for keys in ('id', 'title', 'is_downloaded', 'is_converted', 'path')):
+                                print("WRONG PLAYLIST HISTORY FILE. \n"
+                                      "DELETE THE FILE AND RESTART THE PLAYLIST DOWNLOAD PROCESS")
+                                exit(1)
+
+        # history file not created before, so creating now
+        else:
+            print("||HISTORY FILE NOT FOUND, STARTING FROM BEGINNING||")
+            history = []
+            for song in playlist_info(url)['songs']:
+                path = helpers.safe_filename(playlist_info(url)['playlist_title'])
+                history.append({'id': song['id'],
+                                'title': song['title'],
+                                'is_downloaded': False,
+                                'is_converted': False,
+                                'path': os.path.join(DEF_PATH, path)})
+
+            with open(playlist_info(url)['playlist_title'] + '.history', 'w') as json_file:
+                json.dump(history, json_file)
+
+            with open(playlist_info(url)['playlist_title'] + '.history', 'r') as json_file:
+                history = json.load(json_file)
+
+        # processing songs in history file
+        for entry in history:
+            try:
+                if not entry['is_downloaded'] and not entry['is_converted']:
+                    path = download_video(YT_URL + entry['id'], entry['path'])
+                    entry['is_downloaded'] = True
+                    entry['path'] = path
+
+                    # now convert the downloaded file
+                    convert_fnc(entry['path'])
+                    entry['is_converted'] = True
+
+                    with open(playlist_info(url)['playlist_title'] + '.history', 'w') as json_file:
+                        json.dump(history, json_file)
+                elif entry['is_downloaded'] and not entry['is_converted']:
+                    convert_fnc(entry['path'])
+                    entry['is_converted'] = True
+
+                    with open(playlist_info(url)['playlist_title'] + '.history', 'w') as json_file:
+                        json.dump(history, json_file)
+
             except exceptions.VideoUnavailable:
                 print("||VIDEO NOT FOUND||")
                 exit(1)
+            except urllib.error.HTTPError:
+                print("||ERROR DOWNLOADING SONG. RETRYING.")
+                path = download_video(YT_URL + entry['id'], entry['path'])
+                entry['is_downloaded'] = True
+
+                # now convert the downloaded file
+                convert_fnc(path)
+                entry['is_converted'] = True
+
+                with open(playlist_info(url)['playlist_title'] + '.history', 'w') as json_file:
+                    json.dump(history, json_file)
+        print("||DONE||")
     else:
         print("Wrong URL format!")
         exit(1)
@@ -304,7 +322,7 @@ elif args['convert_mp3']:
         convert_fnc(DEF_PATH)
         exit(0)
     else:
-        print("Download path: {0}\n".format(path))
+        print("Using path: {0}\n".format(path))
         convert_fnc(path)
         exit(0)
 
