@@ -18,7 +18,7 @@ import googleapiclient.discovery
 import httplib2
 from pytube import YouTube, exceptions
 
-from apis import YT_SEARCH_API_KEY, SPOTIFY_API_KEY
+from apis import YT_SEARCH_API_KEY
 
 YT_URL = "https://www.youtube.com/watch?v="
 YT_PLAYLIST_URL = "https://www.youtube.com/playlist?list="
@@ -83,7 +83,7 @@ def playlist_info(playlist_url):
 
     playlist_request = youtube.playlists().list(
         part="snippet",
-        maxResults=50,
+        maxResults=1,
         id=playlist_url.replace(YT_PLAYLIST_URL, '')
     )
 
@@ -96,8 +96,39 @@ def playlist_info(playlist_url):
     playlist_response = playlist_request.execute()
     items_response = items_request.execute()
 
-    return {'title': playlist_response['items'][0]['snippet']['title'],
-            'songs': [song["contentDetails"]["videoId"] for song in items_response["items"]]}
+    songs = []
+
+    total_results = items_response['pageInfo']['totalResults']
+
+    if total_results < 50:
+        for song in items_response['items']:
+            songs.append(song['contentDetails']['videoId'])
+    else:
+        results = total_results
+        while results >= 50:
+            for song in items_response['items']:
+                songs.append(song['contentDetails']['videoId'])
+
+            items_request = youtube.playlistItems().list(
+                part="contentDetails",
+                maxResults=50,
+                playlistId=playlist_url.replace(YT_PLAYLIST_URL, ''),
+                pageToken=items_response['nextPageToken']
+            )
+            results = total_results - len(songs)
+            items_response = items_request.execute()
+
+        for song in items_response['items']:
+            songs.append(song['contentDetails']['videoId'])
+
+    print("PLAYLIST RESPONSE: ")
+    pprint(playlist_response)
+    print("\n---\nITEMS RESPONSE:")
+    pprint(items_response)
+    print(len(songs))
+
+    return {'playlist_title': playlist_response['items'][0]['snippet']['title'],
+            'songs': songs}
 
 
 def yt_search(words):
@@ -159,8 +190,8 @@ group_main.add_argument("-csv", "--convert-csv", metavar="path",
 args = vars(ap.parse_args())
 
 # converts url to mp3 file
-if args["url_to_mp3"]:
-    url = args["url_to_mp3"]
+if args['url_to_mp3']:
+    url = args['url_to_mp3']
 
     if url.startswith(YT_URL):
         print("Using path: {0}".format(DEF_PATH))
@@ -178,7 +209,7 @@ if args["url_to_mp3"]:
     exit(0)
 
 # converts playlist to list of song URLs then each song to mp3
-elif args["playlist_to_mp3"]:
+elif args['playlist_to_mp3']:
     yt_videos = [{'name': "Slippy - Show Me (feat. Sara Skinner) [Monstercat Lyric Video]",
                   'is_downloaded': False,
                   'is_converted': False,
@@ -213,7 +244,7 @@ elif args["playlist_to_mp3"]:
             except IOError:  # or an actual error, not a placeholder
                 print("stuff about error")
 
-    url = args["playlist_to_mp3"]
+    url = args['playlist_to_mp3']
 
     if url.startswith(YT_PLAYLIST_URL):
         print("Using default path: {0}".format(DEF_PATH))
@@ -240,9 +271,9 @@ elif args["playlist_to_mp3"]:
     exit(0)
 
 # reads url and prints url stream data
-elif args["url_info"]:
+elif args['url_info']:
     try:
-        url_info(args["url_info"])
+        url_info(args['url_info'])
     except urllib.error.URLError:
         print("||COULD NOT SEARCH URL||")
         print("||MAYBE NO INTERNET CONNECTION||")
@@ -250,8 +281,8 @@ elif args["url_info"]:
     exit(0)
 
 # reads playlist url and prints video ids
-elif args["playlist_info"]:
-    url = args["playlist_info"]
+elif args['playlist_info']:
+    url = args['playlist_info']
     if url.startswith(YT_PLAYLIST_URL):
         try:
             pprint(playlist_info(url))
@@ -265,8 +296,8 @@ elif args["playlist_info"]:
         exit(1)
 
 # converts leftover files to mp3
-elif args["convert_mp3"]:
-    path = args["convert_mp3"]
+elif args['convert_mp3']:
+    path = args['convert_mp3']
     if path == '':
         path = DEF_PATH
         print("Using default path: {0}\n".format(DEF_PATH))
@@ -278,8 +309,8 @@ elif args["convert_mp3"]:
         exit(0)
 
 # reads csv file, searches for the songs on YT then converts them to mp3
-elif args["convert_csv"]:
-    path = args["convert_csv"]
+elif args['convert_csv']:
+    path = args['convert_csv']
     print("||OPENING CSV FILE||")
     try:
         csv_read(path)
