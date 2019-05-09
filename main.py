@@ -90,12 +90,12 @@ def playlist_info(playlist_url):
 
     total_results = items_response['pageInfo']['totalResults']
 
-    if total_results < 50:
+    if total_results <= 50:
         for song in items_response['items']:
             songs.append({'title': song['snippet']['title'], 'id': song['snippet']['resourceId']['videoId']})
     else:
         results = total_results
-        while results >= 50:
+        while results > 50:
             for song in items_response['items']:
                 songs.append({'title': song['snippet']['title'], 'id': song['snippet']['resourceId']['videoId']})
 
@@ -244,6 +244,7 @@ elif args['playlist_to_mp3']:
 
         # processing songs in history file
         for entry in history:
+            path = ''
             try:
                 if not entry['is_downloaded'] and not entry['is_converted']:
                     path = download_video(YT_URL + entry['id'], entry['path'])
@@ -267,8 +268,9 @@ elif args['playlist_to_mp3']:
                 print("||VIDEO NOT FOUND||")
                 exit(1)
             except urllib.error.HTTPError:
-                print("||ERROR DOWNLOADING SONG. RETRYING.")
-                path = download_video(YT_URL + entry['id'], entry['path'])
+                while path == '':
+                    print("||ERROR DOWNLOADING SONG. RETRYING.")
+                    path = download_video(YT_URL + entry['id'], entry['path'])
                 entry['is_downloaded'] = True
 
                 # now convert the downloaded file
