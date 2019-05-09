@@ -44,19 +44,14 @@ def download_video(video_url, download_path):
 
 
 def convert_fnc(file_path):
-    try:
-        if os.path.isfile(file_path):
-            if not os.path.splitext(file_path)[1] == ".mp3":
-                print("||FOUND FILE|| ~~ {0}".format(file_path))
-                stream = ffmpeg.input(file_path)
-                stream = ffmpeg.output(stream, file_path.replace(
-                    os.path.splitext(file_path)[1], ".mp3"), format="mp3")
-                ffmpeg.run(stream)
-                os.remove(file_path)
-    except FileNotFoundError:
-        print("||FILES NOT FOUND||")
-        exit(1)
-    print("||CONVERSION FINISHED||")
+    if os.path.isfile(file_path):
+        if not os.path.splitext(file_path)[1] == ".mp3":
+            print("||FOUND FILE|| ~~ {0}".format(file_path))
+            stream = ffmpeg.input(file_path)
+            stream = ffmpeg.output(stream, file_path.replace(
+                os.path.splitext(file_path)[1], ".mp3"), format="mp3")
+            ffmpeg.run(stream)
+            os.remove(file_path)
 
 
 def url_info(video_url):
@@ -319,7 +314,11 @@ elif args['convert_mp3']:
     if path == '':
         path = DEF_PATH
         print("Using default path: {0}\n".format(DEF_PATH))
-        convert_fnc(DEF_PATH)
+        try:
+            convert_fnc(DEF_PATH)
+        except FileNotFoundError:
+            print("||FILES NOT FOUND||")
+            exit(1)
         exit(0)
     else:
         print("Using path: {0}\n".format(path))
